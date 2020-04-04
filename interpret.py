@@ -5,26 +5,39 @@ import re
 
 no_err=0
 err=1
-input=""
-source=""
+input_path=""
+source_path=""
 
 def err_exit(err_code):
     switcher = {
         1: "par len err",
         2: "help err",
-        3: "else err"
+        3: "else err",
+        4: "file err"
     }
     print(switcher.get(err_code, "Error in error printing"))
     exit(err_code)
+
+def file_handler(path):
+    if path != "":
+        try:
+            file = open(path, "r")
+        except:
+            err_exit(4)
+        else:
+            file.close()
+            return file
+    else:
+        return sys.stdin.read()
 
 if len(sys.argv)<2 or len(sys.argv)>3:
     err_exit(err)
 
 for arg in sys.argv[1:]:
     if re.match('--input=.+', arg):
-        input=arg.split('=')[1]
+        input_path=arg.split('=')[1]
     elif re.match('--source=.+', arg):
-        source=arg.split('=')[1]
+        source_path=arg.split('=')[1]
     elif re.match('--help', arg):
         if len(sys.argv)>2:
             err_exit(2)
@@ -34,15 +47,10 @@ for arg in sys.argv[1:]:
     else:
         err_exit(3)
 
-if input == "":
-    input = sys.stdin.read()
-elif source == "":
-    source = sys.stdin.read()
+input_file = file_handler(input_path)
+source_file = file_handler(source_path)
 
-try:
-    ...
-except:
-    ...
+
 
 print("done")
 exit(0)
