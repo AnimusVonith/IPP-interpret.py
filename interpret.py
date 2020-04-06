@@ -44,13 +44,18 @@ for arg in sys.argv[1:]:
         else:
             print("WOW! This is useless\n")
             exit(no_err)
-    else:
+    elif input_path != "" and source_path != "":
         err_exit(3)
+    else:
+        pass
 
 input_file = file_handler(input_path)
 source_file = file_handler(source_path)
 
-
+for line in source_file:
+    print(line)
+    if re.match("<?xml version=\"1.0\" encoding=\"UTF-8\"?>", line):
+        print("first line gutte")
 
 print("done")
 exit(0)
