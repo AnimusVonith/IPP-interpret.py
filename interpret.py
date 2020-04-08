@@ -1,7 +1,7 @@
 #!/usr/bin/python
 
 from sys import stdin, argv
-from re import match
+from re import match, compile, IGNORECASE, search
 
 input_path = ""
 source_path = ""
@@ -73,8 +73,16 @@ source_file=path_handler(source_path)
 if match('<\?xml version="1.0" encoding="UTF-8"\?>', source_file.readline()) == 0:
     err_exit(5)
 
+
 for line in source_file.readlines():
-    print(line, end="")
+    if search('<program language=".+" name=".+">',line):
+        print("program")
+    elif search('<instruction order="[1-9][0-9]*" opcode=".+">',line):
+        print("instruction")
+    elif search('<arg[1-4] type=.+>',line):
+        print("arg")
+    else:
+        print(line)
 
 print("done")
 exit(0)
