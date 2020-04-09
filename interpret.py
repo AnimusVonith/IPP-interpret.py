@@ -18,7 +18,9 @@ def err_exit(err_code):
         6: "context err",
         7: "semantic err",
         8: "command err",
-        9: "list err"
+        9: "list err",
+        10: "instr_err",
+        11: "arg err"
     }
     print(switch_err.get(err_code, "Error in error printing"))
     exit(err_code)
@@ -121,12 +123,114 @@ for line in source_file.readlines():
         err_exit(8)
 
 
+def check_n_of_args(expected_n, checked_n):
+    if expected_n != checked_n:
+        err_exit(11)
+
+
+def MOVE_func(pars):
+    ...
+def CREATEFRAME_func():
+    ...
+def PUSHFRAME_func():
+    ...
+def POPFRAME_func():
+    ...
+def DEFVAR_func(pars):
+    ...
+def CALL_func(pars):
+    ...
+def RETURN_func():
+    ...
+def PUSHS_func(pars):
+    ...
+def POPS_func(pars):
+    ...
+def MATH_func(pars):
+    ...
+def COMPARISON_func(pars):
+    ...
+def LOGICAL_func(pars):
+    ...
+def INT2CHAR_func(pars):
+    ...
+def STRI2INT_func(pars):
+    ...
+def READ_func(pars):
+    ...
+def WRITE_func(pars):
+    ...
+def CONCAT_func(pars):
+    ...
+def STRLEN_func(pars):
+    ...
+def GETCHAR_func(pars):
+    ...
+def SETCHAR_func(pars):
+    ...
+def TYPE_func(pars):
+    ...
+def LABEL_func(pars):
+    ...
+def JUMP_func(pars):
+    ...
+def JUMPIF_func(pars):
+    ...
+def EXIT_func(pars):
+    ...
+def DPRINT_func(pars):
+    ...
+def BREAK_func():
+    ...
+
+
+instruction_Dictionary = {
+    "MOVE" : (MOVE_func,2),
+    "CREATEFRAME" : (CREATEFRAME_func,0),
+    "PUSHFRAME" : (PUSHFRAME_func,0),
+    "POPFRAME" : (POPFRAME_func,0),
+    "DEFVAR" : (DEFVAR_func,1),
+    "CALL" : (CALL_func,1),
+    "RETURN" : (RETURN_func,0),
+    "PUSHS" : (PUSHS_func,1),
+    "POPS" : (POPS_func,1),
+    "ADD" : (MATH_func,3),
+    "SUB" : (MATH_func,3),
+    "MUL" : (MATH_func,3),
+    "IDIV" : (MATH_func,3),
+    "LT" : (COMPARISON_func,3),
+    "GT" : (COMPARISON_func,3),
+    "EQ" : (COMPARISON_func,3),
+    "AND" : (LOGICAL_func,3),
+    "OR" : (LOGICAL_func,3),
+    "NOT" : (LOGICAL_func,3),
+    "INT2CHAR" : (INT2CHAR_func,2),
+    "STRI2INT" : (STRI2INT_func,3),
+    "READ" : (READ_func,2),
+    "WRITE" : (WRITE_func,1),
+    "CONCAT" : (CONCAT_func,3),
+    "STRLEN" : (STRLEN_func,2),
+    "GETCHAR" : (GETCHAR_func,3),
+    "SETCHAR" : (SETCHAR_func,3),
+    "TYPE" : (TYPE_func,2),
+    "LABEL" : (LABEL_func,1),
+    "JUMP" : (JUMP_func,1),
+    "JUMPIFEQ" : (JUMPIF_func,3),
+    "JUMPIFNEQ" : (JUMPIF_func,3),
+    "EXIT" : (EXIT_func,1),
+    "DPRINT" : (DPRINT_func,1),
+    "BREAK" : (BREAK_func,0)
+}
+
+
 for i in sorted(instruction_list):
-    print(instruction_list[i][1])
-    print("n of args:"+str(len(instruction_list[i])-2))
-    for x in instruction_list[i][2:]:
-        print(x)
-    print()
+    if not instruction_list[i][1] in instruction_Dictionary:
+        err_exit(10)
+    else:
+        check_n_of_args(instruction_Dictionary[instruction_list[i][1]][1], len(instruction_list[i])-2)
+
+    instruction_Dictionary[instruction_list[i][1]][0](sorted(instruction_list[i][2:]))
+
 
 
 
