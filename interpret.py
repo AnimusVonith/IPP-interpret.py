@@ -17,7 +17,8 @@ def err_exit(err_code):
         5: "match err",
         6: "context err",
         7: "semantic err",
-        8: "command err"
+        8: "command err",
+        9: "list err"
     }
     print(switch_err.get(err_code, "Error in error printing"))
     exit(err_code)
@@ -81,7 +82,7 @@ source_file=path_handler(source_path)
 if match('<\?xml version="1.0" encoding="UTF-8"\?>', source_file.readline()) == 0:
     err_exit(5)
 
-instruction_list = []
+instruction_list = {}
 instruction_with_args=[]
 
 for line in source_file.readlines():
@@ -92,35 +93,41 @@ for line in source_file.readlines():
 
     elif search('<instruction order="[1-9][0-9]*" opcode=".+">$' ,line):
         context_entry("instruction")
-        instruction_with_args=[]
-        instruction = [line.strip().split(' ')[1].split('=')[1].strip('"'),
-                       line.strip().split(' ')[2].split('=')[1].split('>')[0].strip('"')]
-        instruction_with_args.append(instruction)
-
+        if not line.strip().split(' ')[1].split('=')[1].strip('"') in instruction_list:
+            instruction_with_args = [line.strip().split(' ')[1].split('=')[1].strip('"'),
+                                 line.strip().split(' ')[2].split('=')[1].split('>')[0].strip('"')]
+        else:
+            err_exit(7)
     elif search('<arg[1-4] type=.+>.*</arg[1-4]>$' ,line):
         if line.strip()[4] != line.strip()[-2]:
             err_exit(7)
         context_entry("arg" +str(line.strip()[4]))
-        argument = [line.strip()[4],
-                    line.strip().split(' ')[1].split('>')[0].split('=')[1].strip('"'),
-                    line.strip().split(' ')[1].split('>')[1].split('<')[0]]
 
-        instruction_with_args.append(argument)
+
+        instruction_with_args.append([line.strip()[4],
+                    line.strip().split(' ')[1].split('>')[0].split('=')[1].strip('"'),
+                    line.strip().split(' ')[1].split('>')[1].split('<')[0]])
+
+
         context_exit("arg" +str(line.strip()[-2]))
 
     elif search('</instruction>$' ,line):
         context_exit("instruction")
-        instruction_list.append(instruction_with_args)
+        instruction_list[int(instruction_with_args[0])]=instruction_with_args
+
     elif search('</program>$' ,line):
         context_exit("program")
     else:
         err_exit(8)
 
-def sorting_func(e):
-    return int(e[0][0])
 
-instruction_list.sort(key=sorting_func)
-for i in instruction_list:
-    print(i)
+for i in sorted(instruction_list):
+    print(instruction_list[i][1])
+    print("n of args:"+str(len(instruction_list[i])-2))
+    for x in instruction_list[i][2:]:
+        print(x)
+    print()
+
+
 
 exit(0)
