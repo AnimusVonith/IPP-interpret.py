@@ -127,6 +127,16 @@ def check_n_of_args(expected_n, checked_n):
     if expected_n != checked_n:
         err_exit(11)
 
+def get_variable(var_name):
+    if var_name in temp_frame:
+        ...
+    elif var_name in local_frame:
+        ...
+    elif var_name in global_frame:
+        ...
+    else:
+        ...
+
 
 def MOVE_func(pars):
     ...
@@ -226,10 +236,13 @@ instruction_Dictionary = {
 for i in sorted(instruction_list):
     if not instruction_list[i][1] in instruction_Dictionary:
         err_exit(10)
-    else:
-        check_n_of_args(instruction_Dictionary[instruction_list[i][1]][1], len(instruction_list[i])-2)
 
-    instruction_Dictionary[instruction_list[i][1]][0](sorted(instruction_list[i][2:]))
+    check_n_of_args(instruction_Dictionary[instruction_list[i][1]][1], len(instruction_list[i])-2)
+
+    if not len(instruction_list[i])-2:
+        instruction_Dictionary[instruction_list[i][1]][0]()
+    else:
+        instruction_Dictionary[instruction_list[i][1]][0](sorted(instruction_list[i][2:]))
 
 
 
