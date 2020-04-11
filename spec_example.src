@@ -15,8 +15,7 @@
     </instruction>
     <instruction order="6" opcode="PUSHFRAME">
     </instruction>
-    <instruction order="7" opcode="WRITE">
-        <arg1 type="string">\010</arg1>
+    <instruction order="7" opcode="POPFRAME">
     </instruction>
     <instruction order="8" opcode="CONCAT">
         <arg1 type="var">GF@counter</arg1>
