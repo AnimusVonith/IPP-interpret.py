@@ -133,6 +133,11 @@ class Variable:
     def __init__(self, type, value):
         self.type = type
         self.value = value
+    def __str__(self):
+        return "type: '" + self.type + "' and value: '" + str(self.value) +"'"
+
+    def __repr__(self):
+        return "'" + self.type + "' , '" + str(self.value) + "'"
 
 frame_stack = []
 
@@ -143,6 +148,7 @@ global_frame = {
 temp_frame = None
 local_frames = None
 
+labels=[]
 
 frames = {
     "TF" : temp_frame,
@@ -160,7 +166,6 @@ def get_variable(variable_string):
             return frames[frame_name].top()[var_name]
         else:
             err_exit(12)
-
     else:
         if var_name in frames[frame_name]:
             return frames[frame_name][var_name]
@@ -173,10 +178,14 @@ def check_types(target1, target2):
 
 def MOVE_func(pars):
     destination, target = pars
+    destination=get_variable(destination[2])
     if target[1] == "var":
-        get_variable(target[2])
+        target = get_variable(target[2])
+        destination.type = target.type
+        destination.value = target.value
     else:
-        ...
+        destination.type = target[1]
+        destination.value = target[2]
 
 def CREATEFRAME_func():
     frames["TF"] = {}
@@ -186,7 +195,7 @@ def PUSHFRAME_func():
         err_exit(55)
     if frames["LF"] is None:
         frames["LF"] = []
-    frames["LF"].push(frames["TF"])
+    frames["LF"].append(frames["TF"])
     frames["TF"] = None
 
 def POPFRAME_func():
@@ -310,6 +319,6 @@ for i in sorted(instruction_list):
         instruction_Dictionary[instruction_list[i][1]][0](sorted(instruction_list[i][2:]))
 
 
-
+print(frames)
 
 exit(0)
