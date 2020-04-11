@@ -129,20 +129,29 @@ def check_n_of_args(expected_n, checked_n):
         err_exit(11)
 
 
+class Variable:
+    def __init__(self, type, value):
+        self.type = type
+        self.value = value
+
+frame_stack = []
+
 global_frame = {
 
 }
 
+temp_frame = None
+local_frames = None
+
+
 frames = {
-    TF : temp_frame,
-    LF : local_frames,
-    GF : global_frame
+    "TF" : temp_frame,
+    "LF" : local_frames,
+    "GF" : global_frame
 }
 
-
-def var_handle(var_string):
-    return var_string.split("@")
-
+def var_handle(variable_string):
+    return variable_string.split("@")
 
 def get_variable(variable_string):
     frame_name, var_name = var_handle(variable_string)
@@ -151,23 +160,39 @@ def get_variable(variable_string):
     else:
         err_exit(12)
 
-
+def check_types(target1, target2):
+    if target1.type != target2.type:
+        ...
 
 
 
 def MOVE_func(pars):
     destination, target = pars
-
+    get_variable(destination)
     ...
 
 def CREATEFRAME_func():
-    temp_frame = []
+    frames["TF"] = {}
 
 def PUSHFRAME_func():
-    ...
+    if frames["TF"] is None:
+        err_exit(55)
+    if frames["LF"] is None:
+        frames["LF"] = {}
+    frames["LF"].append(frames["TF"]) #copy
+    frames["TF"] = None
 
 def POPFRAME_func():
-    ...
+    if frames["TF"] is None:
+        frames["TF"] = {}
+    if frames["LF"] is not None:
+        try:
+            frames["TF"] = frames["LF"].pop()
+        except:
+            ...
+    else:
+        err_exit(55)
+
 def DEFVAR_func(pars):
     ...
 def CALL_func(pars):
