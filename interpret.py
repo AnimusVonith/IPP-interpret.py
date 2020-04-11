@@ -155,21 +155,28 @@ def var_handle(variable_string):
 
 def get_variable(variable_string):
     frame_name, var_name = var_handle(variable_string)
-    if var_name in frames[frame_name]:
-        return frames[var_name]
+    if frame_name == "LF":
+        if var_name in frames[frame_name].top():
+            return frames[frame_name].top()[var_name]
+        else:
+            err_exit(12)
+
     else:
-        err_exit(12)
+        if var_name in frames[frame_name]:
+            return frames[frame_name][var_name]
+        else:
+            err_exit(12)
 
 def check_types(target1, target2):
     if target1.type != target2.type:
         ...
 
-
-
 def MOVE_func(pars):
     destination, target = pars
-    get_variable(destination)
-    ...
+    if target[1] == "var":
+        get_variable(target[2])
+    else:
+        ...
 
 def CREATEFRAME_func():
     frames["TF"] = {}
@@ -178,8 +185,8 @@ def PUSHFRAME_func():
     if frames["TF"] is None:
         err_exit(55)
     if frames["LF"] is None:
-        frames["LF"] = {}
-    frames["LF"].append(frames["TF"]) #copy
+        frames["LF"] = []
+    frames["LF"].push(frames["TF"])
     frames["TF"] = None
 
 def POPFRAME_func():
@@ -194,7 +201,18 @@ def POPFRAME_func():
         err_exit(55)
 
 def DEFVAR_func(pars):
-    ...
+    frame, name = var_handle(pars[0][2])
+    if frame != "LF" and frame != "GF" and frame != "TF":
+        err_exit(10) ###################################################
+    if frame == "LF":
+        if name in frames[frame].top():
+            err_exit(52)
+        frames[frame].top()[name] = Variable(None, None)
+    else:
+        if name in frames[frame]:
+            err_exit(52)
+        frames[frame][name] = Variable(None, None)
+
 def CALL_func(pars):
     ...
 def RETURN_func():
