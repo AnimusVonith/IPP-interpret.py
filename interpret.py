@@ -20,7 +20,8 @@ def err_exit(err_code):
         8: "command err",
         9: "list err",
         10: "instr_err",
-        11: "arg err"
+        11: "arg err",
+        12: "var err"
     }
     print(switch_err.get(err_code, "Error in error printing"))
     exit(err_code)
@@ -127,23 +128,44 @@ def check_n_of_args(expected_n, checked_n):
     if expected_n != checked_n:
         err_exit(11)
 
-def get_variable(var_name):
-    if var_name in temp_frame:
-        ...
-    elif var_name in local_frame:
-        ...
-    elif var_name in global_frame:
-        ...
+
+global_frame = {
+
+}
+
+frames = {
+    TF : temp_frame,
+    LF : local_frames,
+    GF : global_frame
+}
+
+
+def var_handle(var_string):
+    return var_string.split("@")
+
+
+def get_variable(variable_string):
+    frame_name, var_name = var_handle(variable_string)
+    if var_name in frames[frame_name]:
+        return frames[var_name]
     else:
-        ...
+        err_exit(12)
+
+
+
 
 
 def MOVE_func(pars):
+    destination, target = pars
+
     ...
+
 def CREATEFRAME_func():
-    ...
+    temp_frame = []
+
 def PUSHFRAME_func():
     ...
+
 def POPFRAME_func():
     ...
 def DEFVAR_func(pars):
