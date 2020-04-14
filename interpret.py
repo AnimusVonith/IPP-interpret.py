@@ -1,36 +1,28 @@
 #!/usr/bin/python
 
 from sys import stdin, argv, stderr
-from re import match, compile, IGNORECASE, search
+from re import match, compile, IGNORECASE, search, findall
 
 input_path = ""
 source_path = ""
 context = []
 
-
 def err_exit(err_code):
     switch_err = {
-        1: "par len err",
-        2: "help err",
-        3: "else err",
-        4: "file err",
-        5: "match err",
-        6: "context err",
-        7: "semantic err",
-        8: "command err",
-        9: "list err",
-        10: "instr_err",
-        11: "arg err",
-        12: "var err",
+        10: "parameter error",
+        11: "read file error",
+        12: "write file error",
+        31: "not well-formed",
+        32: "lexical or syntax error",
         52: "semantic err",
         53: "wrong type in operand",
         54: "cant access var",
         55: "cant access frame",
         56: "value is missing",
         57: "wrong value of operand",
-        58: "wrong operations on string"
+        58: "wrong operations on string",
+        99: "internal error"
     }
-    print(switch_err.get(err_code, "Error in error printing"))
     exit(err_code)
 
 def path_handler(checked_path):
@@ -40,22 +32,21 @@ def path_handler(checked_path):
         try:
             return open(checked_path, 'r')
         except:
-            err_exit(4)
+            err_exit(11)
 
 
 def context_entry(checked_word):
-    if checked_word != "program" and checked_word != "instruction" and match('arg[1-4]', checked_word) == 0:
-        err_exit(6)
+    if checked_word != "program" and checked_word != "instruction" and match('arg[1-3]', checked_word) == 0:
+        err_exit(32)
     elif checked_word == "program" and context != []:
-        err_exit(6)
+        err_exit(32)
     elif len(context) == 0 and checked_word != "program":
-        err_exit(6)
+        err_exit(32)
     elif checked_word == "instruction" and context == [-1]:
-        err_exit(6)
-    elif match('arg[1-4]', checked_word) and context[-1] != "instruction":
-        err_exit(6)
+        err_exit(32)
+    elif match('arg[1-3]', checked_word) and context[-1] != "instruction":
+        err_exit(32)
     context.append(checked_word)
-
 
 
 def context_exit(checked_word):
@@ -64,11 +55,11 @@ def context_exit(checked_word):
     elif context[-1] == checked_word:
         context.pop()
     else:
-        err_exit(6)
+        err_exit(32)
 
 
 if len(argv) < 2 or len(argv) > 3:
-    err_exit(1)
+    err_exit(10)
 
 for arg in argv[1:]:
     if match('--input\=.+', arg):
@@ -77,12 +68,12 @@ for arg in argv[1:]:
         source_path = arg.split('=')[1]
     elif match('--help', arg):
         if len(argv) > 2:
-            err_exit(2)
+            err_exit(10)
         else:
-            print("WOW! This is useless\n")
+            print("help")
             exit(0)
     else:
-        err_exit(3)
+        err_exit(10)
 
 
 input_file=path_handler(input_path)
@@ -90,7 +81,7 @@ source_file=path_handler(source_path)
 
 
 if match('<\?xml version="1.0" encoding="UTF-8"\?>', source_file.readline()) == 0:
-    err_exit(5)
+    err_exit(31)
 
 instruction_list = {}
 instruction_with_args=[]
@@ -98,7 +89,7 @@ instruction_with_args=[]
 for line in source_file.readlines():
     if search('<program language=".+" name=".+">$',line):
         if match(compile('ippcode20' ,IGNORECASE),line.split(' ')[1].split('=')[1]):
-            err_exit(7)
+            err_exit(31)
         context_entry("program")
 
     elif search('<instruction order="[1-9][0-9]*" opcode=".+">$' ,line):
@@ -107,17 +98,16 @@ for line in source_file.readlines():
             instruction_with_args = [line.strip().split(' ')[1].split('=')[1].strip('"'),
                                  line.strip().split(' ')[2].split('=')[1].split('>')[0].strip('"')]
         else:
-            err_exit(7)
-    elif search('<arg[1-4] type=.+>.*</arg[1-4]>$' ,line):
+            err_exit(32)
+    elif search('<arg[1-3] type=.+>.*</arg[1-4]>$' ,line):
         if line.strip()[4] != line.strip()[-2]:
-            err_exit(7)
+            err_exit(32)
         context_entry("arg" +str(line.strip()[4]))
 
 
         instruction_with_args.append([line.strip()[4],
                     line.strip().split(' ')[1].split('>')[0].split('=')[1].strip('"'),
                     line.strip().split(' ')[1].split('>')[1].split('<')[0]])
-
 
         context_exit("arg" +str(line.strip()[-2]))
 
@@ -128,12 +118,12 @@ for line in source_file.readlines():
     elif search('</program>$' ,line):
         context_exit("program")
     else:
-        err_exit(8)
+        err_exit(32)
 
 
 def check_n_of_args(expected_n, checked_n):
     if expected_n != checked_n:
-        err_exit(11)
+        err_exit(32)
 
 
 class ConstantClass:
@@ -149,17 +139,15 @@ class ConstantClass:
 
 
 global_frame = {}
-
 temp_frame = None
 local_frames = None
-
-labels=[]
-
 frames = {
     "TF" : temp_frame,
     "LF" : local_frames,
     "GF" : global_frame
 }
+
+call_context = []
 
 def var_handle(variable_string):
     return variable_string.split("@")
@@ -198,6 +186,8 @@ def check_if_symb(checked_symb, other_type):
     other_type_regex = compile(other_type)
     if checked_symb[1] == "var":
         symb = get_variable(checked_symb)
+        if symb.type is None and other_type == ".+":
+            return symb
         if search(other_type_regex, symb.type):
             return symb
         else:
@@ -242,7 +232,7 @@ def POPFRAME_func():
 def DEFVAR_func(pars):
     frame, name = var_handle(pars[0][2])
     if frame != "LF" and frame != "GF" and frame != "TF":
-        err_exit(10)
+        err_exit(32)
     if frame == "LF":
         if name in frames[frame].top():
             err_exit(52)
@@ -253,9 +243,16 @@ def DEFVAR_func(pars):
         frames[frame][name] = ConstantClass(None, None)
 
 def CALL_func(pars):
-    ... #TODO
+    label = pars[0]
+    if label[1] != "label":
+        err_exit(53)
+    if label[2] in labels:
+        interpret_code(labels[label[2]])
+    else:
+        err_exit(57)
+
 def RETURN_func():
-    ... #TODO
+    pass
 
 data_stack = []
 
@@ -394,9 +391,57 @@ def STRI2INT_func(pars):
     var.type = "int"
 
 def READ_func(pars):
-    ... #TODO
+    var, type = pars
+    var = get_variable(var)
+    try:
+        holder = input_path.readline()
+    except:
+        var.type = "nil"
+        var.value = "nil"
+
+    if type == "int":
+        if match('[1-9][0-9]*',holder):
+            var.type = "int"
+            var.value = holder
+        else:
+            var.type = "nil"
+            var.value = "nil"
+    elif type == "string":
+        var.type = "string"
+        var.value = holder
+    elif type == "bool":
+        if match(compile('true', IGNORECASE), holder):
+            var.type = "bool"
+            var.value = "true"
+        else:
+            var.type = "bool"
+            var.value = "false"
+    else:
+        err_exit(53)
+
+def replace_uni_string_func(string):
+    temp_string = string.value
+    escaped_unicodes_list = findall(r'(\\[0-9]{3})+', temp_string)
+
+    for escaped_unicode in escaped_unicodes_list:
+        unicode_char = chr(int(escapedUnicode[1:]))
+        temp_string = temp_string.replace(escaped_unicode, unicode_char)
+    return temp_string
+
 def WRITE_func(pars):
-    ... #TODO
+    symb = pars[0]
+    symb = check_if_symb(symb, ".+")
+    if symb.type == "bool":
+        output = symb.value.lower()
+    elif symb.type == "nil":
+        output = ''
+    elif symb.type == "string":
+        output = replace_uni_string_func(symb)
+    elif symb.type == "int":
+        output = str(symb.value)
+    else:
+        err_exit(53)
+    print(output ,end='')
 
 def CONCAT_func(pars):
     var, symb1, symb2 = pars
@@ -445,11 +490,38 @@ def TYPE_func(pars):
     var.type = "string"
 
 def LABEL_func(pars):
-    ...#TODO
+    pass
+
 def JUMP_func(pars):
-    ...#TODO
-def JUMPIF_func(pars):
-    ...#TODO
+    label = pars[0]
+    if label[1] != "label":
+        err_exit(53)
+    if label[2] in labels:
+        interpret_code(labels[label[2]])
+    else:
+        err_exit(57)
+
+def JUMPIFEQ_func(pars):
+    label, symb1, symb2 = pars
+    decider = False
+    if symb1[1] == "nil" or symb2[1] == "nil":
+        decider = symb1[1] == symb2[1]
+    else:
+        compare_types(ConstantClass(symb1[1], symb1[2]), ConstantClass(symb2[1], symb2[2]))
+        decider = symb1[2] == symb2[2]
+    if decider:
+        JUMP_func(label)
+
+def JUMPIFNEQ_func(pars):
+    label, symb1, symb2 = pars
+    decider = False
+    if symb1[1] == "nil" or symb2[1] == "nil":
+        decider = symb1[1] != symb2[1]
+    else:
+        compare_types(ConstantClass(symb1[1], symb1[2]), ConstantClass(symb2[1], symb2[2]))
+        decider = symb1[2] != symb2[2]
+    if decider:
+        JUMP_func(label)
 
 def EXIT_func(pars):
     symb = pars[0]
@@ -460,12 +532,11 @@ def EXIT_func(pars):
 
 def DPRINT_func(pars):
     symb = pars[0]
-    symb = check_if_symb(symb)
+    symb = check_if_symb(symb, ".+")
     print(symb.value ,file=stderr)
 
 def BREAK_func():
-    print(frames ,file=stderr)
-
+    print(frames, labels, data_stack ,file=stderr)
 
 instruction_Dictionary = {
     "MOVE" : (MOVE_func,2),
@@ -498,36 +569,47 @@ instruction_Dictionary = {
     "TYPE" : (TYPE_func,2),
     "LABEL" : (LABEL_func,1),
     "JUMP" : (JUMP_func,1),
-    "JUMPIFEQ" : (JUMPIF_func,3),
-    "JUMPIFNEQ" : (JUMPIF_func,3),
+    "JUMPIFEQ" : (JUMPIFEQ_func,3),
+    "JUMPIFNEQ" : (JUMPIFNEQ_func,3),
     "EXIT" : (EXIT_func,1),
     "DPRINT" : (DPRINT_func,1),
     "BREAK" : (BREAK_func,0)
 }
 
-def interpret_code():
+labels = {}
+
+def interpret_code(starting_point):
     for i in sorted(instruction_list):
+        if i <= starting_point:
+            continue
         if not instruction_list[i][1] in instruction_Dictionary:
             err_exit(32)
+        if i < 1:
+            err_exit(32)
         check_n_of_args(instruction_Dictionary[instruction_list[i][1]][1], len(instruction_list[i])-2)
+        if instruction_list[i][1] == "CALL":
+            call_context.append(int(i))
+        if instruction_list[i][1] == "RETURN":
+            if not call_context:
+                err_exit(56)
+            call_context.pop()
+            return
         if not len(instruction_list[i])-2:
             instruction_Dictionary[instruction_list[i][1]][0]()
         else:
             instruction_Dictionary[instruction_list[i][1]][0](sorted(instruction_list[i][2:]))
-
-vars = []
 
 def check_code():
     for i in sorted(instruction_list):
         if not instruction_list[i][1] in instruction_Dictionary:
             err_exit(32)
         if instruction_list[i][1] == "LABEL":
-            labels.append(i)
-        if instruction_list[i][1] == "DEFVAR":
-            vars.append(i)
+            if instruction_list[i][2][2] in labels:
+                err_exit(52)
+            labels[instruction_list[i][2][2]] = int(i)
 
-interpret_code()
-print(frames)
-print(data_stack)
+
+check_code()
+interpret_code(0)
 
 exit(0)

@@ -3,33 +3,24 @@
     <instruction order="1" opcode="DEFVAR">
         <arg1 type="var">GF@counter</arg1>
     </instruction>
-    <instruction order="2" opcode="DEFVAR">
-        <arg1 type="var">GF@semi</arg1>
-    </instruction>
-    <instruction order="3" opcode="MOVE">
-        <arg1 type="var">GF@counter</arg1>
-        <arg2 type="int">5</arg2>
-    </instruction>
-    <instruction order="4" opcode="CREATEFRAME">
-    </instruction>
-    <instruction order="6" opcode="PUSHFRAME">
-    </instruction>
-     <instruction order="5" opcode="CREATEFRAME">
-    </instruction>
-    <instruction order="7" opcode="POPFRAME">
-    </instruction>
-    <instruction order="8" opcode="PUSHS">
-        <arg1 type="var">GF@counter</arg1>
-    </instruction>
-    <instruction order="9" opcode="POPS">
-        <arg1 type="var">GF@semi</arg1>
+    <instruction order="3" opcode="LABEL">
+        <arg1 type="label">GF@semi</arg1>
     </instruction>
     <instruction order="10" opcode="TYPE">
         <arg1 type="var">GF@counter</arg1>
         <arg2 type="var">GF@counter</arg2>
     </instruction>
-    <instruction order="11" opcode="TYPE">
-        <arg1 type="var">GF@semi</arg1>
-        <arg2 type="var">GF@counter</arg2>
+    <instruction order="11" opcode="CALL">
+        <arg1 type="label">skibidibi</arg1>
+    </instruction>
+    <instruction order="13" opcode="EXIT">
+        <arg1 type="int">0</arg1>
+    </instruction>
+    <instruction order="15" opcode="LABEL">
+        <arg1 type="label">skibidibi</arg1>
+    </instruction>
+    <instruction order="16" opcode="BREAK">
+    </instruction>
+    <instruction order="17" opcode="RETURN">
     </instruction>
 </program>
