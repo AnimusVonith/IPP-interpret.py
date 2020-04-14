@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-from sys import stdin, argv
+from sys import stdin, argv, stderr
 from re import match, compile, IGNORECASE, search
 
 input_path = ""
@@ -21,7 +21,14 @@ def err_exit(err_code):
         9: "list err",
         10: "instr_err",
         11: "arg err",
-        12: "var err"
+        12: "var err",
+        52: "semantic err",
+        53: "wrong type in operand",
+        54: "cant access var",
+        55: "cant access frame",
+        56: "value is missing",
+        57: "wrong value of operand",
+        58: "wrong operations on string"
     }
     print(switch_err.get(err_code, "Error in error printing"))
     exit(err_code)
@@ -129,21 +136,19 @@ def check_n_of_args(expected_n, checked_n):
         err_exit(11)
 
 
-class Variable:
+class ConstantClass:
     def __init__(self, type, value):
         self.type = type
         self.value = value
+
     def __str__(self):
         return "type: '" + self.type + "' and value: '" + str(self.value) +"'"
 
     def __repr__(self):
-        return "'" + self.type + "' , '" + str(self.value) + "'"
+        return "('" + self.type + "' , '" + str(self.value) + "')"
 
-frame_stack = []
 
-global_frame = {
-
-}
+global_frame = {}
 
 temp_frame = None
 local_frames = None
@@ -159,31 +164,59 @@ frames = {
 def var_handle(variable_string):
     return variable_string.split("@")
 
-def get_variable(variable_string):
-    frame_name, var_name = var_handle(variable_string)
+def check_type_var(target_type):
+    if target_type != "var":
+        err_exit(53)
+
+def get_variable(target):
+    check_type_var(target[1])
+    frame_name, var_name = var_handle(target[2])
+    if frame_name != "LF" and frame_name != "GF" and frame_name != "TF":
+        err_exit(55)
     if frame_name == "LF":
         if var_name in frames[frame_name].top():
             return frames[frame_name].top()[var_name]
         else:
-            err_exit(12)
+            err_exit(54)
     else:
         if var_name in frames[frame_name]:
             return frames[frame_name][var_name]
         else:
-            err_exit(12)
+            err_exit(54)
 
-def check_types(target1, target2):
-    if target1.type != target2.type:
-        ...
+def check_type_notNone(var):
+    if var.type is None or var.value is None:
+        err_exit(56)
+
+def compare_types(base, compared):
+    check_type_notNone(compared)
+    if base.type is not None:
+        if base.type != compared.type:
+            err_exit(53)
+
+def check_if_symb(checked_symb, other_type):
+    other_type_regex = compile(other_type)
+    if checked_symb[1] == "var":
+        symb = get_variable(checked_symb)
+        if search(other_type_regex, symb.type):
+            return symb
+        else:
+            err_exit(53)
+    elif search(other_type_regex, checked_symb[1]):
+        return ConstantClass(checked_symb[1], checked_symb[2])
+    else:
+        err_exit(53)
 
 def MOVE_func(pars):
     destination, target = pars
-    destination=get_variable(destination[2])
+    destination = get_variable(destination)
     if target[1] == "var":
-        target = get_variable(target[2])
+        target = get_variable(target)
+        check_type_notNone(target)
         destination.type = target.type
         destination.value = target.value
     else:
+        check_type_notNone(ConstantClass(target[1],target[2]))
         destination.type = target[1]
         destination.value = target[2]
 
@@ -201,71 +234,237 @@ def PUSHFRAME_func():
 def POPFRAME_func():
     if frames["TF"] is None:
         frames["TF"] = {}
-    if frames["LF"] is not None:
-        try:
-            frames["TF"] = frames["LF"].pop()
-        except:
-            ...
+    if frames["LF"] is not None and frames["LF"] != []:
+        frames["TF"] = frames["LF"].pop()
     else:
         err_exit(55)
 
 def DEFVAR_func(pars):
     frame, name = var_handle(pars[0][2])
     if frame != "LF" and frame != "GF" and frame != "TF":
-        err_exit(10) ###################################################
+        err_exit(10)
     if frame == "LF":
         if name in frames[frame].top():
             err_exit(52)
-        frames[frame].top()[name] = Variable(None, None)
+        frames[frame].top()[name] = ConstantClass(None, None)
     else:
         if name in frames[frame]:
             err_exit(52)
-        frames[frame][name] = Variable(None, None)
+        frames[frame][name] = ConstantClass(None, None)
 
 def CALL_func(pars):
-    ...
+    ... #TODO
 def RETURN_func():
-    ...
+    ... #TODO
+
+data_stack = []
+
 def PUSHS_func(pars):
-    ...
+    if pars[0][1] == "var":
+        var=get_variable(pars[0])
+        symb=ConstantClass(var.type, var.value)
+    else:
+        symb=ConstantClass(pars[0][1], pars[0][2])
+    check_type_notNone(symb)
+    data_stack.append(symb)
+
 def POPS_func(pars):
-    ...
-def MATH_func(pars):
-    ...
-def COMPARISON_func(pars):
-    ...
-def LOGICAL_func(pars):
-    ...
+    destination = get_variable(pars[0])
+    if not data_stack:
+        err_exit(56)
+    popped_symb = data_stack.pop()
+    destination.type = popped_symb.type
+    destination.value = popped_symb.value
+
+def MATH_func(pars, op):
+    destination, n1, n2 = pars
+    destination = get_variable(destination)
+
+    n1 = check_if_symb(n1, "int")
+    n2 = check_if_symb(n2, "int")
+
+    if op=="ADD":
+        destination.value = int(n1.value) + int(n2.value)
+    elif op=="SUB":
+        destination.value = int(n1.value) - int(n2.value)
+    elif op=="MUL":
+        destination.value = int(n1.value) * int(n2.value)
+    elif op=="IDIV":
+        if n2.value == 0:
+            err_exit(57)
+        destination.value = int(n1.value) // int(n2.value)
+
+    destination.type = "int"
+
+def ADD_func(pars):
+    MATH_func(pars, "ADD")
+
+def SUB_func(pars):
+    MATH_func(pars, "SUB")
+
+def MUL_func(pars):
+    MATH_func(pars, "MUL")
+
+def IDIV_func(pars):
+    MATH_func(pars, "IDIV")
+
+def COMPARE_func(pars, op):
+    destination, symb1, symb2 = pars
+    destination = get_variable(destination)
+    destination.type = "bool"
+
+    if (symb1[1] == "nil" or symb2[1] == "nil") and op != "EQ":
+        err_exit(53)
+    elif (symb1[1] == "nil" or symb2[1] == "nil") and op == "EQ":
+        if symb1[1] == symb2[1]:
+            destination.value = "true"
+        else:
+            destination.value = "false"
+    else:
+        compare_types(ConstantClass(symb1[1], symb1[2]), ConstantClass(symb2[1], symb2[2]))
+        if op == "EQ":
+            destination.value = str(symb1[2] == symb2[2]).lower()
+        elif op == "GT":
+            destination.value = str(symb1[2] > symb2[2]).lower()
+        elif op == "LT":
+            destination.value = str(symb1[2] < symb2[2]).lower()
+
+def LT_func(pars):
+    COMPARE_func(pars, "LT")
+
+def GT_func(pars):
+    COMPARE_func(pars, "GT")
+
+def EQ_func(pars):
+    COMPARE_func(pars, "EQ")
+
+def convert_stringbool_to_bool(string):
+    if string.value.lower() == "true":
+        string.value = True
+    elif string.value.lower() == "false":
+        string.value = False
+    else:
+        err_exit(57)
+
+def LOGICAL_COMPARE_func(pars, op):
+    var, symb1, symb2 = pars
+
+    var = get_variable(var)
+    symb1 = check_if_symb(symb1, "bool")
+    symb2 = check_if_symb(symb2, "bool")
+    convert_stringbool_to_bool(symb1)
+    convert_stringbool_to_bool(symb2)
+    var.type="bool"
+    if op == "AND":
+        var.value = str(symb1.value and symb2.value).lower()
+    if op == "OR":
+        var.value = str(symb1.value or symb2.value).lower()
+
+def AND_func(pars):
+    LOGICAL_COMPARE_func(pars, "AND")
+
+def OR_func(pars):
+    LOGICAL_COMPARE_func(pars, "OR")
+
+def NOT_func(pars):
+    var, symb1 = pars
+    var = get_variable(var)
+    symb1 = check_if_symb(symb1, "bool")
+    convert_stringbool_to_bool(symb1)
+    var.type = "bool"
+    var.value = not symb1.value
+
 def INT2CHAR_func(pars):
-    ...
+    var, symb = pars
+    var = get_variable(var)
+    symb = check_if_symb(symb, "int")
+    if int(symb) < 0 or int(symb) > int(1114111):
+        err_exit(58)
+    var.value = chr(int(symb))
+    var.type = "string"
+
 def STRI2INT_func(pars):
-    ...
+    var, symb1, symb2 = pars
+    var = get_variable(var)
+    symb1 = check_if_symb(symb1, "string")
+    symb2 = check_if_symb(symb2, "int")
+    if int(symb2.value) >= len(symb1.value):
+        err_exit(58)
+    var.value = ord(symb1.value[int(symb2.value)])
+    var.type = "int"
+
 def READ_func(pars):
-    ...
+    ... #TODO
 def WRITE_func(pars):
-    ...
+    ... #TODO
+
 def CONCAT_func(pars):
-    ...
+    var, symb1, symb2 = pars
+    var = get_variable(var)
+    symb1 = check_if_symb(symb1, "string")
+    symb2 = check_if_symb(symb2, "string")
+    var.value = str(symb1.value) + str(symb2.value)
+    var.type = "string"
+
 def STRLEN_func(pars):
-    ...
+    var, symb = pars
+    var = get_variable(var)
+    symb = check_if_symb(symb, "string")
+    var.value = len(symb.value)
+    var.type = "int"
+
 def GETCHAR_func(pars):
-    ...
+    var, symb1, symb2 = pars
+    var = get_variable(var)
+    symb1 = check_if_symb(symb1, "int")
+    symb2 = check_if_symb(symb2, "string")
+    if int(symb1.value) < 0 or int(symb1.value) >= len(symb2.value):
+        err_exit(58)
+    var.value = symb2.value[int(symb1.value)]
+    var.type = "string"
+
 def SETCHAR_func(pars):
-    ...
+    var, symb1, symb2 = pars
+    var = get_variable(var)
+    if var.type != "string":
+        err_exit(53)
+    symb1 = check_if_symb(symb1, "int")
+    symb2 = check_if_symb(symb2, "string")
+    if int(symb1.value) < 0 or int(symb1.value) >= len(symb1) or len(symb2.value) == 0:
+        err_exit(58)
+    var[int(symb1.value)] = symb2[0]
+
 def TYPE_func(pars):
-    ...
+    var, symb = pars
+    var = get_variable(var)
+    symb = check_if_symb(symb, ".+")
+    if symb.type is None:
+        var.value = ''
+    else:
+        var.value = symb.type
+    var.type = "string"
+
 def LABEL_func(pars):
-    ...
+    ...#TODO
 def JUMP_func(pars):
-    ...
+    ...#TODO
 def JUMPIF_func(pars):
-    ...
+    ...#TODO
+
 def EXIT_func(pars):
-    ...
+    symb = pars[0]
+    symb = check_if_symb(symb, "int")
+    if int(symb.value) < 0 or int(symb.value) > 49:
+        err_exit(57)
+    exit(int(symb.value))
+
 def DPRINT_func(pars):
-    ...
+    symb = pars[0]
+    symb = check_if_symb(symb)
+    print(symb.value ,file=stderr)
+
 def BREAK_func():
-    ...
+    print(frames ,file=stderr)
 
 
 instruction_Dictionary = {
@@ -278,16 +477,16 @@ instruction_Dictionary = {
     "RETURN" : (RETURN_func,0),
     "PUSHS" : (PUSHS_func,1),
     "POPS" : (POPS_func,1),
-    "ADD" : (MATH_func,3),
-    "SUB" : (MATH_func,3),
-    "MUL" : (MATH_func,3),
-    "IDIV" : (MATH_func,3),
-    "LT" : (COMPARISON_func,3),
-    "GT" : (COMPARISON_func,3),
-    "EQ" : (COMPARISON_func,3),
-    "AND" : (LOGICAL_func,3),
-    "OR" : (LOGICAL_func,3),
-    "NOT" : (LOGICAL_func,3),
+    "ADD" : (ADD_func,3),
+    "SUB" : (SUB_func,3),
+    "MUL" : (MUL_func,3),
+    "IDIV" : (IDIV_func,3),
+    "LT" : (LT_func,3),
+    "GT" : (GT_func,3),
+    "EQ" : (EQ_func,3),
+    "AND" : (AND_func,3),
+    "OR" :  (OR_func,3),
+    "NOT" : (NOT_func,2),
     "INT2CHAR" : (INT2CHAR_func,2),
     "STRI2INT" : (STRI2INT_func,3),
     "READ" : (READ_func,2),
@@ -306,19 +505,29 @@ instruction_Dictionary = {
     "BREAK" : (BREAK_func,0)
 }
 
+def interpret_code():
+    for i in sorted(instruction_list):
+        if not instruction_list[i][1] in instruction_Dictionary:
+            err_exit(32)
+        check_n_of_args(instruction_Dictionary[instruction_list[i][1]][1], len(instruction_list[i])-2)
+        if not len(instruction_list[i])-2:
+            instruction_Dictionary[instruction_list[i][1]][0]()
+        else:
+            instruction_Dictionary[instruction_list[i][1]][0](sorted(instruction_list[i][2:]))
 
-for i in sorted(instruction_list):
-    if not instruction_list[i][1] in instruction_Dictionary:
-        err_exit(10)
+vars = []
 
-    check_n_of_args(instruction_Dictionary[instruction_list[i][1]][1], len(instruction_list[i])-2)
+def check_code():
+    for i in sorted(instruction_list):
+        if not instruction_list[i][1] in instruction_Dictionary:
+            err_exit(32)
+        if instruction_list[i][1] == "LABEL":
+            labels.append(i)
+        if instruction_list[i][1] == "DEFVAR":
+            vars.append(i)
 
-    if not len(instruction_list[i])-2:
-        instruction_Dictionary[instruction_list[i][1]][0]()
-    else:
-        instruction_Dictionary[instruction_list[i][1]][0](sorted(instruction_list[i][2:]))
-
-
+interpret_code()
 print(frames)
+print(data_stack)
 
 exit(0)
